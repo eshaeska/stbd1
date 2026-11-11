@@ -1,0 +1,220 @@
+Table roles {
+  role_id int [pk, increment]
+  name varchar(50) [not null, unique]
+  description text
+}
+
+Table users {
+  user_id bigint [pk, increment]
+  role_id int [not null, ref: > roles.role_id]
+  login varchar(50) [not null]
+  password_hash varchar(255) [not null]
+  full_name varchar(150) [not null]
+  email varchar(150)
+  is_deleted boolean [not null, default: false, note: 'soft delete']
+  deleted_at timestamptz
+  deleted_by bigint [ref: > users.user_id]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  updated_by bigint [ref: > users.user_id]
+}
+
+Table license_categories {
+  category_id int [pk, increment]
+  code varchar(5) [not null, unique]
+  description varchar(100)
+}
+
+Table drivers {
+  driver_id bigint [pk, increment]
+  user_id bigint [unique, ref: - users.user_id]
+  first_name varchar(60) [not null]
+  last_name varchar(60) [not null]
+  phone varchar(20)
+  license_number varchar(20) [not null]
+  license_expiry date [not null]
+  hired_at date [not null]
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamptz
+  deleted_by bigint [ref: > users.user_id]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  updated_by bigint [ref: > users.user_id]
+}
+
+Table driver_license_categories {
+  driver_id bigint [not null, ref: > drivers.driver_id]
+  category_id int [not null, ref: > license_categories.category_id]
+  obtained_at date
+  indexes { (driver_id, category_id) [pk] }
+}
+
+Table vehicle_brands {
+  brand_id int [pk, increment]
+  name varchar(60) [not null, unique]
+}
+
+Table vehicle_models {
+  model_id int [pk, increment]
+  brand_id int [not null, ref: > vehicle_brands.brand_id]
+  name varchar(60) [not null]
+  body_type varchar(30)
+  seats int
+  required_category_id int [ref: > license_categories.category_id]
+  indexes { (brand_id, name) [unique] }
+}
+
+Table fuel_types {
+  fuel_type_id int [pk, increment]
+  name varchar(30) [not null, unique]
+}
+
+Table vehicle_statuses {
+  status_id int [pk, increment]
+  code varchar(20) [not null, unique, note: 'AVAILABLE | IN_TRIP | MAINTENANCE | DECOMMISSIONED']
+  name varchar(60) [not null]
+}
+
+Table vehicles {
+  vehicle_id bigint [pk, increment]
+  model_id int [not null, ref: > vehicle_models.model_id]
+  fuel_type_id int [not null, ref: > fuel_types.fuel_type_id]
+  status_id int [not null, ref: > vehicle_statuses.status_id]
+  vin char(17) [not null]
+  plate_number varchar(15) [not null]
+  manufacture_year int [not null]
+  color varchar(30)
+  odometer_km numeric(10,1) [not null, default: 0]
+  tank_capacity_l numeric(6,1)
+  purchase_date date
+  purchase_price numeric(12,2)
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamptz
+  deleted_by bigint [ref: > users.user_id]
+  created_at timestamptz [not null]
+  updated_at timestamptz [not null]
+  updated_by bigint [ref: > users.user_id]
+}
+
+Table vehicle_assignments {
+  assignment_id bigint [pk, increment]
+  vehicle_id bigint [not null, ref: > vehicles.vehicle_id]
+  driver_id bigint [not null, ref: > drivers.driver_id]
+  assigned_at timestamptz [not null]
+  returned_at timestamptz
+}
+
+Table trips {
+  trip_id bigint [pk, increment]
+  vehicle_id bigint [not null, ref: > vehicles.vehicle_id]
+  driver_id bigint [not null, ref: > drivers.driver_id]
+  purpose varchar(200)
+  start_location varchar(150) [not null]
+  end_location varchar(150) [not null]
+  started_at timestamptz [not null]
+  finished_at timestamptz
+  start_odometer_km numeric(10,1) [not null]
+  end_odometer_km numeric(10,1)
+  status varchar(12) [not null, note: 'IN_PROGRESS | COMPLETED | CANCELLED']
+  created_by bigint [ref: > users.user_id]
+  updated_at timestamptz [not null]
+  updated_by bigint [ref: > users.user_id]
+}
+
+Table fuel_stations {
+  station_id int [pk, increment]
+  name varchar(100) [not null]
+  address varchar(200)
+}
+
+Table fuel_records {
+  fuel_id bigint [pk, increment]
+  vehicle_id bigint [not null, ref: > vehicles.vehicle_id]
+  driver_id bigint [ref: > drivers.driver_id]
+  station_id int [ref: > fuel_stations.station_id]
+  fuel_type_id int [not null, ref: > fuel_types.fuel_type_id]
+  fueled_at timestamptz [not null]
+  liters numeric(7,2) [not null]
+  price_per_liter numeric(8,2) [not null]
+  total_cost numeric(12,2) [note: 'generated: liters * price_per_liter']
+  odometer_km numeric(10,1)
+  updated_at timestamptz [not null]
+  updated_by bigint [ref: > users.user_id]
+}
+
+Table service_stations {
+  service_id int [pk, increment]
+  name varchar(100) [not null]
+  address varchar(200)
+  phone varchar(20)
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamptz
+  deleted_by bigint [ref: > users.user_id]
+}
+
+Table maintenance_types {
+  type_id int [pk, increment]
+  name varchar(100) [not null, unique]
+  interval_km int
+  interval_months int
+}
+
+Table maintenance_orders {
+  order_id bigint [pk, increment]
+  vehicle_id bigint [not null, ref: > vehicles.vehicle_id]
+  type_id int [not null, ref: > maintenance_types.type_id]
+  service_id int [ref: > service_stations.service_id]
+  opened_at timestamptz [not null]
+  closed_at timestamptz
+  odometer_km numeric(10,1)
+  cost numeric(12,2)
+  status varchar(12) [not null, note: 'OPEN | IN_PROGRESS | COMPLETED | CANCELLED']
+  description text
+  updated_at timestamptz [not null]
+  updated_by bigint [ref: > users.user_id]
+}
+
+Table insurance_companies {
+  company_id int [pk, increment]
+  name varchar(100) [not null, unique]
+  phone varchar(20)
+}
+
+Table insurance_policies {
+  policy_id bigint [pk, increment]
+  vehicle_id bigint [not null, ref: > vehicles.vehicle_id]
+  company_id int [not null, ref: > insurance_companies.company_id]
+  policy_number varchar(40) [not null]
+  policy_type varchar(10) [not null, note: 'OSAGO | KASKO']
+  valid_from date [not null]
+  valid_to date [not null]
+  premium numeric(12,2) [not null]
+  is_deleted boolean [not null, default: false]
+  deleted_at timestamptz
+  deleted_by bigint [ref: > users.user_id]
+  updated_at timestamptz [not null]
+  updated_by bigint [ref: > users.user_id]
+}
+
+Table fines {
+  fine_id bigint [pk, increment]
+  vehicle_id bigint [not null, ref: > vehicles.vehicle_id]
+  driver_id bigint [ref: > drivers.driver_id]
+  trip_id bigint [ref: > trips.trip_id]
+  fine_date date [not null]
+  amount numeric(10,2) [not null]
+  description varchar(250)
+  is_paid boolean [not null, default: false]
+  paid_at timestamptz
+}
+
+Table audit_log {
+  log_id bigint [pk, increment]
+  table_name varchar(60) [not null]
+  record_id bigint [not null]
+  action varchar(10) [not null]
+  old_data jsonb
+  new_data jsonb
+  changed_by bigint [ref: > users.user_id]
+  changed_at timestamptz [not null]
+}
